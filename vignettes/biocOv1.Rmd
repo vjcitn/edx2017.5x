@@ -1,0 +1,103 @@
+---
+title: "Bioconductor Overview: edX 525.5x Part I"
+author: "Vincent J. Carey"
+package: edx2017.5x
+output: 
+  BiocStyle::html_document2:
+    toc: true
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Bioc overview Part I}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}  
+---
+```{r setup,echo=FALSE,results="hide"}
+suppressPackageStartupMessages({
+library(png)
+library(grid)
+library(Homo.sapiens)
+})
+```
+
+# The R language and its packages and repositories
+
+This course assumes a good working knowledge of the R language.
+The Rstudio environment is recommended.  If you want to
+work through a tutorial before proceeding, 
+[Try R](http://tryr.codeschool.com/) is very comprehensive.
+
+## Why R?
+
+Bioconductor is based on [R](www.r-project.org).  Three key reasons for thisare:
+
+- R is used by many statisticians and biostatisticians to create algorithms that advance our ability to understand complex experimental data.
+- R is highly interoperable, and fosters reuse of software components written in other languages. 
+- R is portable to the key operating systems running on commodity computing equipment (Linux, MacOSX, Windows) and can be used immediately by beginners with access to any of these platforms.
+
+In summary, R's ease-of-use and central role in statistics and "data science" make it a natural choice for a tool-set for use by biologists and statisticians confronting genome-scale experimental data.  Since the Bioconductor project's inception in 2001, it has kept pace with growing volumes
+and complexity of data emerging in genome-scale biology.
+
+## Functional object-oriented programming
+
+R combines functional and object-oriented programming paradigms.^[[Chambers 2014](https://projecteuclid.org/euclid.ss/1408368569)]
+
+- In functional programming, notation and program activity mimic the
+concept of function in mathematics.  For example
+```
+square = function(x) x^2
+```
+is valid R code that defines the symbol `square` as a function that
+computes the second power of its input.  The body of the function
+is the program code `x^2`, in which `x` is a "free variable".
+Once `square` has been defined in this way, `square(3)` has
+value `9`.  We say the `square` function has been evaluated on
+argument `3`.  **In R, all computations proceed by evaluation of functions.**
+
+- In object-oriented programming, a strong focus is placed upon
+formalizing data structure, and defining methods that take
+advantage of guarantees established through the formalism.  This
+approach is quite natural but did not get well-established in
+practical computer programming until the 1990s.  As an
+advanced example with Bioconductor, we will consider an 
+approach to defining an "object" representing on the genome
+of *Homo sapiens*:
+```{r lkho}
+library(Homo.sapiens)
+class(Homo.sapiens)
+methods(class=class(Homo.sapiens))
+```
+We say that `Homo.sapiens` is an **instance** of the `OrganismDb` **class**.  Every instance of this class must respond to the methods
+listed above.  Of special note at this juncture are the methods
+`genes`, `exons`, `transcripts` which will yield information about
+fundamental components of genomes used to devise and interpret
+molecular assays.  These methods will succeed for human and
+for other model organisms such as *Mus musculus*, *S. cerevisiae*,
+*C. elegans*, and others for which the Bioconductor project and its contributors have defined `OrganismDb` representations.
+
+# The central dogma of molecular biology restated
+
+```{r lklk,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Wikipedia schematic.  Chromosomes are composed of coding and non-coding DNA sequence.  Coding sequence includes exons and introns.  Exons are spliced and transcribed to messenger RNA, which is then processed and translated to active protein."}
+im = readPNG("wikiCentralDogma.png")
+grid.raster(im)
+```
+
+# A collection of genome-scale assays
+
+## The complete DNA sequence for an organism's reference genome
+
+## SNPs: cataloging population-level variation in DNA sequence
+
+## mRNA abundance estimates: depicting transcriptional states
+
+## Epigenomics: how regulatory factors bind to DNA to control transcription and translation
+
+## Other crucial assay classes: Proteomics, metabolomics, microbiomics, whole-genome editing
+
+## Coda: the single cell revolution
+
+# Data structures for genome-scale assays
+
+# Exploring genome-scale assay data
+
+# Testing statistical hypotheses with genome-scale assays
+

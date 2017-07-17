@@ -1,0 +1,12 @@
+Package: edx2017.5x
+Title: Bioconductor materials for edX ph525.5x
+Description: This package provides course materials for edX ph525.5x.
+Version: 0.0.0
+Author: Vince Carey
+Suggests: 
+Depends: BiocStyle, markdown
+Maintainer: VJ Carey <stvjc@channing.harvard.edu>
+License: Artistic-2.0
+LazyLoad: yes
+BiocViews: variants
+VignetteBuilder: knitr
