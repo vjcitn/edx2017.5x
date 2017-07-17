@@ -28,7 +28,7 @@ work through a tutorial before proceeding,
 
 ## Why R?
 
-Bioconductor is based on [R](www.r-project.org).  Three key reasons for thisare:
+Bioconductor is based on [R](www.r-project.org).  Three key reasons for this are:
 
 - R is used by many statisticians and biostatisticians to create algorithms that advance our ability to understand complex experimental data.
 - R is highly interoperable, and fosters reuse of software components written in other languages. 
@@ -74,6 +74,87 @@ molecular assays.  These methods will succeed for human and
 for other model organisms such as *Mus musculus*, *S. cerevisiae*,
 *C. elegans*, and others for which the Bioconductor project and its contributors have defined `OrganismDb` representations.
 
+## R packages, modularity, continuous integration
+
+This section can be skipped on a first reading.
+
+### Package structure
+
+We can perform object-oriented functional programming with R
+by writing R code.  A basic approach is to create "scripts" that
+define all the steps underlying processes of data import and
+analysis.  When scripts are written in such a way that they
+only define functions and data structures, it becomes possible to
+*package* them for convenient distribution to other users
+confronting similar data management and data analysis problems.
+
+The R software [packaging protocol](https://cran.r-project.org/doc/manuals/r-release/R-exts.html) specifies how source code in R and other languages can be organized together with metadata and documentation to foster
+convenient testing and redistribution.  For example, an early
+version of the package defining this document had the folder 
+layout given below:
+
+```
+├── DESCRIPTION  (text file with metadata on provenance, licensing)
+├── NAMESPACE    (text file defining imports and exports)
+├── R            (folder for R source code)
+├── README.md    (optional for github face page)
+├── data         (folder for exemplary data)
+├── man          (folder for detailed documentation)
+├── tests        (folder for formal software testing code)
+└── vignettes    (folder for high-level documentation)
+    ├── biocOv1.Rmd
+    ├── biocOv1.html
+    └── wikiCentralDogma.png
+```
+
+The packaging protocol document "Writing R Extensions" provides
+full details.  The R command `R CMD build [foldername]` will operate on the
+contents of a package folder to create an archive that can
+be added to an R installation using `R CMD INSTALL [archivename]`.
+The R studio system performs these tasks with GUI elements.
+
+### Modularity and formal interdependence of packages
+
+The packaging protocol helps us to isolate software that
+performs a limited set of operations, and to
+identify the **version** of a program collection
+that is inherently changing over time.  There is
+no objective way to determine whether
+a set of operations is the right size for packaging.
+Some very useful packages carry out only a small number of
+tasks, while others have very broad scope.  What is important
+is that the package concept permits **modularization** of
+software.  This is important in two dimensions: scope and time.
+Modularization of scope is important to allow parallel independent
+development of software tools that address distinct problems.
+Modularization in time is important to allow identification of
+versions of software whose behavior is stable.
+
+### Continuous integration: testing package correctness and interoperability
+
+The figure below is a snapshot of the [build report](http://bioconductor.org/checkResults/3.6/bioc-LATEST/) for the development branch of Bioconductor.
+
+```{r lkci,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Continuous integration report for Bioconductor devel branch.  All packages are checked every night on three major computing platforms."}
+im = readPNG("buildRep.png")
+grid.raster(im)
+```
+
+
+## Putting it together
+
+Bioconductor's core developer group works hard to develop
+data structures that allow users to work conveniently with
+genomes and genome-scale data.  Structures are devised to
+support the main phases of experimentation in genome scale biology:
+
+- Parse large-scale assay data as produced by microarray or sequencer flow-cell scanners.
+- Preprocess the (relatively) raw data to support reliable statistical interpretation.
+- Combine assay quantifications with sample-level data to test hypotheses about relationships between molecular processes and organism-level characteristics such as growth, disease state.
+
+In this course we will review the objects and functions that
+you can use to perform these and related tasks in your own
+research.
+
 # The central dogma of molecular biology restated
 
 ```{r lklk,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Wikipedia schematic.  Chromosomes are composed of coding and non-coding DNA sequence.  Coding sequence includes exons and introns.  Exons are spliced and transcribed to messenger RNA, which is then processed and translated to active protein."}
@@ -85,7 +166,14 @@ grid.raster(im)
 
 ## The complete DNA sequence for an organism's reference genome
 
+```{r lkbrow,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="DNA sequence and annotation for gene ORMDL3. This is a gene on chromosome 17 suspected of playing a role in the development of asthma."}
+im = readPNG("ucscORMDL3.png")
+grid.raster(im)
+```
+
 ## SNPs: cataloging population-level variation in DNA sequence
+
+[the 'SNPs in publications' glyph](https://genome.ucsc.edu/cgi-bin/hgc?c=chr17&l=38082721&r=38082892&o=38082806&t=38082807&g=pubsMarkerSnp&i=rs12603332&db=hg19)
 
 ## mRNA abundance estimates: depicting transcriptional states
 
