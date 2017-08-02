@@ -6,16 +6,36 @@ output:
   BiocStyle::html_document2:
     toc: true
     toc_float: true
+abstract: >
+  This document introduces concepts to be covered in the 5x module,
+  *Introduction to Bioconductor*.  This overview document covers six
+  key concepts: R language and packages, the central dogma of molecular
+  biology, genome-scale assays, data structures for such assays,
+  exploratory analysis, and hypothesis testing.  Our objective with
+  this document is to
+  ensure acquaintance with the higher-level concepts of the
+  submodules to follow, with very light sketches of code in
+  R that can be used to get some hands-on exposure to these
+  concepts.  Some of the technical material on package
+  structure and continuous integration can be safely skipped.
 vignette: >
   %\VignetteIndexEntry{Bioc overview Part I}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}  
 ---
 ```{r setup,echo=FALSE,results="hide"}
+suppressWarnings({
 suppressPackageStartupMessages({
 library(png)
 library(grid)
 library(Homo.sapiens)
+library(GenomicRanges)
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(RNAseqData.HNRNPC.bam.chr14)
+library(GenomicAlignments)
+library(Rsamtools)
+library(ggbio)
+})
 })
 ```
 
@@ -157,18 +177,84 @@ research.
 
 # The central dogma of molecular biology restated
 
-```{r lklk,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Wikipedia schematic.  Chromosomes are composed of coding and non-coding DNA sequence.  Coding sequence includes exons and introns.  Exons are spliced and transcribed to messenger RNA, which is then processed and translated to active protein."}
+Very simply, the central dogma states that DNA makes RNA makes
+protein.  This, combined with the idea that cellular activities
+are primarily driven by protein chemistry, motivates our
+agenda.  DNA sequences are blueprints for protein collections,
+but the path from DNA to functional protein and beyond,
+to organismic structure and function, is long and
+incompletely understood.
+
+More detail is exposed in the following diagram.
+
+```{r lklk,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Wikipedia schematic.  Chromosomes are composed of coding and non-coding DNA sequence.  Coding sequence includes exons and introns.  Exons are spliced and transcribed to messenger RNA (mRNA), which is then processed and translated to active protein."}
 im = readPNG("wikiCentralDogma.png")
 grid.raster(im)
 ```
+
+In the past 10 years, many facets of the central dogma have
+started to come into focus.  We will learn how to work with
+data on DNA sequence, mRNA, and other genomic entities to
+test hypotheses on biological processes (often in
+the form of human diseases).  In this way we will strengthen
+mankind's understanding of human health and the mechanisms
+by which medical practices work to preserve health, and restore it 
+when it has been lost.
 
 # A collection of genome-scale assays
 
 ## The complete DNA sequence for an organism's reference genome
 
+The figure below is a snapshot of use of the UCSC genome
+browser, providing nucleotide-level depiction of sequence
+and annotation for an expressed part of the gene ORMDL3.
+
 ```{r lkbrow,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="DNA sequence and annotation for gene ORMDL3. This is a gene on chromosome 17 suspected of playing a role in the development of asthma."}
 im = readPNG("ucscORMDL3.png")
 grid.raster(im)
+```
+
+The sequence of letters ACTG along the top of the display are the
+reference base calls for the human genome.  We will use Bioconductor
+object to extract these in R, to illustrate 
+the object-oriented programming concept noted above.
+
+### An object representing a reference build of the human genome
+
+The `BSgenome.Hsapiens.UCSC.hg19` package provides a representation
+of the reference genome created at NCBI in 2009.  Individual
+chromosomes (or more generally, annotated contiguous sequences,
+some of which have yet to be positioned on chromosomes) can
+be referenced using the `$` operator.
+```{r lkhg}
+library(BSgenome.Hsapiens.UCSC.hg19)
+Hsapiens
+Hsapiens$chr1
+```
+
+### A 'range' object identifying a set of genomic coordinates
+
+The `GenomicRanges` package defines a family of data structures
+useful for representing intervals on sequences.  A `GRanges`
+instance can represent the coding region of a gene by defining
+the name of the chromosome, the start and end positions of
+the gene region, the strand on which the
+gene resides, and the reference genome for which gene location
+was determined.  Here we define the extent of coding
+region for ORMDL3.
+```{r dog}
+library(GenomicRanges)
+myr = GRanges("chr17", 
+    IRanges(38077296, 38083884), strand="-", genome="hg19")
+myr
+```
+
+### A request for nucleotide sequence
+
+The nucleotide sequence for any interval is acquired
+with the `getSeq` in the `Biostrings` package.
+```{r doget}
+getSeq(Hsapiens, myr)
 ```
 
 ## SNPs: cataloging population-level variation in DNA sequence
@@ -176,6 +262,65 @@ grid.raster(im)
 [the 'SNPs in publications' glyph](https://genome.ucsc.edu/cgi-bin/hgc?c=chr17&l=38082721&r=38082892&o=38082806&t=38082807&g=pubsMarkerSnp&i=rs12603332&db=hg19)
 
 ## mRNA abundance estimates: depicting transcriptional states
+
+The abundance of 
+messenger RNA (mRNA) molecules in cells can be quantified
+in various ways.  In general it is not possible to
+obtain exact counts, but relative abundances 
+are compared between samples after extensive
+statistical preprocessing.  The overall process of
+assaying single or multiple cells for mRNA abundance
+is sometimes referred to as transcript profiling.
+
+High-throughput sequencing of mRNA
+(RNA-seq) has become the most common method
+of measurement for current studies, but a large
+archive of mRNA measurements obtained using
+DNA microarrays is available at NCBI Gene Expression
+Omnibus (GEO) and is useful for retrospective research.
+We will examine both modalities of transcriptome
+measurement, but for this introduction we focus
+on RNA-seq.
+
+### HNRNPC: a gene that may protect us from defective mRNA splicing
+
+A 2013 paper of [Zarnack and colleagues](http://dx.doi.org/10.1016/j.cell.2012.12.023)
+studies the role of the heterogeneous nuclear ribonucleoproteins C1 and C2
+(coded for by gene HNRNPC) in the prevention of inclusion of cryptic Alu elements
+in spliced transcripts.  One part of the study involves knockdown of HNRNPC
+in HeLa cells, followed by genome-wide observation of frequency of cryptic Alu element
+inclusion.  
+
+The Bioconductor package `RNAseqData.HNRNPC.bam.chr14` includes an extract
+from the RNA-seq data generated in this study.  There are 8 BAM files that have
+been filtered and indexed to include information on mRNA molecules mapped
+to the sequence of chromosome 14.  The protocol creates "paired-end" reads.
+We can have a quick look at the short reads of mRNA sequence as follows:
+
+```{r getlibs}
+bf1 = RNAseqData.HNRNPC.bam.chr14_BAMFILES[1] # first of 8 files in package
+r1 = readGappedReads(bf1)
+r1[1:5]
+qseq(r1[1:5])
+```
+
+We can demonstrate the detectability of mRNA coded for by HNRNPC
+using the plotting package `ggbio`.  We use our knowledge of the location
+of the gene to set up a scanning parameter to focus the data extract.
+```{r domo,fig=TRUE,fig.height=4}
+library(Rsamtools)
+library(ggbio)
+hnrnpc_param = ScanBamParam(which=GRanges("chr14", IRanges(21.67e6,21.74e6)))
+limr1 = readGappedReads(bf1, param=hnrnpc_param, use.names=TRUE)
+autoplot(limr1, geom="line", stat="coverage") + ylim(0,900)
+```
+
+Later we will examine data from the knocked-down samples and examine
+the pairing of reads in more detail.
+
+<!-
+pr1 = readGAlignmentPairs(bf1, param=ScanBamParam(what="seq"))
+-->
 
 ## Epigenomics: how regulatory factors bind to DNA to control transcription and translation
 
