@@ -1,0 +1,129 @@
+---
+title: "edX PH525.5x Bioconductor Overview I: R, repositories, objects, packages, continuous integration"
+author: "Vincent J. Carey"
+package: edx2017.5x
+output: 
+  slidy_presentation:
+    incremental: no
+---
+```{r setup,echo=FALSE,results="hide"}
+suppressWarnings({
+suppressPackageStartupMessages({
+library(png)
+library(grid)
+library(Homo.sapiens)
+library(GenomicRanges)
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(RNAseqData.HNRNPC.bam.chr14)
+library(GenomicAlignments)
+library(Rsamtools)
+library(ggbio)
+})
+})
+```
+
+# Overview of this talk
+
+- Brief comments on R, packaging, repositories
+- Concepts of functional object-oriented programming, modularity
+
+# R language packages and repositories
+
+![CRAN](CRANtop.png)
+
+This course assumes a good working knowledge of the R language.
+The Rstudio environment is recommended.  If you want to
+work through a tutorial before proceeding, 
+[Try R](http://tryr.codeschool.com/) is very comprehensive.
+
+# CRAN Task Views as portals to ideas and software
+
+![CTV](taskViews.png)
+
+# Bioconductor: a repository for genomic analysis tools in R
+
+![Bioctop](biocTop.png)
+
+# BiocViews: task views for package discovery
+
+![BCTV](biocTaskViews.png)
+
+# The Bioconductor support site
+
+![bcsupp](bcSupp.png)
+
+# Why R?
+
+- Widely used to create algorithms that advance our ability to understand complex experimental data.
+- Highly interoperable, and fosters reuse of software components written in other languages. 
+- Portable to the key operating systems 
+
+# Functional object-oriented programming
+
+R combines functional and object-oriented programming paradigms.^[[Chambers 2014](https://projecteuclid.org/euclid.ss/1408368569)]
+
+- In functional programming, notation and program activity mimic the
+concept of function in mathematics.  For example
+```
+pow = function(x,y) = x^y      # primitives only
+square = function(x) pow(x,2)  # reuse
+```
+
+
+# Object-oriented concept
+
+Complexity of managing genomic annotation controlled through object design:
+
+```{r lkho}
+library(Homo.sapiens)
+class(Homo.sapiens)   # we have an 'instance'
+methods(class=class(Homo.sapiens))
+```
+
+# Packaging protocol
+
+```
+├── DESCRIPTION  (text file with metadata on provenance, licensing)
+├── NAMESPACE    (text file defining imports and exports)
+├── R            (folder for R source code)
+├── README.md    (optional for github face page)
+├── data         (folder for exemplary data)
+├── man          (folder for detailed documentation)
+├── tests        (folder for formal software testing code)
+└── vignettes    (folder for high-level documentation)
+    ├── biocOv1.Rmd
+    ├── biocOv1.html
+    └── wikiCentralDogma.png
+```
+
+
+# Modularity and formal interdependence of packages
+
+Some very useful packages carry out only a small number of
+tasks, while others have very broad scope.  What is important
+is that the package concept permits **modularization** of
+software.  
+
+- Modularization *of scope* is important to allow parallel independent
+development of software tools that address distinct problems.
+- Modularization *in time* is important to define collections of
+versions of software whose behavior is confirmed and stable.
+
+# Continuous integration: testing package correctness and interoperability
+
+
+```{r lkci,fig=TRUE,echo=FALSE,fig.wide=TRUE, fig.cap="Continuous integration report for Bioconductor devel branch.  All packages are checked every night on three major computing platforms."}
+im = readPNG("buildRep.png")
+grid.raster(im)
+```
+
+
+# Putting it together
+
+Bioconductor's core developer group works hard to develop
+data structures that allow users to work conveniently with
+genomes and genome-scale data. 
+
+- Parse large-scale assay data as produced by microarray or sequencer flow-cell scanners.
+- Preprocess the (relatively) raw data to support reliable statistical interpretation.
+- Combine assay quantifications with sample-level data to test hypotheses about relationships between molecular processes and organism-level characteristics such as growth, disease state.
