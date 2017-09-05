@@ -86,11 +86,15 @@ library(Homo.sapiens)
 class(Homo.sapiens)
 methods(class=class(Homo.sapiens))
 ```
-We say that `Homo.sapiens` is an **instance** of the `OrganismDb` **class**.  Every instance of this class must respond to the methods
-listed above.  Of special note at this juncture are the methods
+We say that `Homo.sapiens` is an **instance** of the `OrganismDb` 
+**class**.  Every instance of this class will respond meaningfully
+to the methods
+listed above.  Each method is implemented as an R function.
+What the function does depends upon the class of its arguments.
+Of special note at this juncture are the methods
 `genes`, `exons`, `transcripts` which will yield information about
-fundamental components of genomes used to devise and interpret
-molecular assays.  These methods will succeed for human and
+fundamental components of genomes.  
+These methods will succeed for human and
 for other model organisms such as *Mus musculus*, *S. cerevisiae*,
 *C. elegans*, and others for which the Bioconductor project and its contributors have defined `OrganismDb` representations.
 
@@ -259,7 +263,31 @@ getSeq(Hsapiens, myr)
 
 ## SNPs: cataloging population-level variation in DNA sequence
 
-[the 'SNPs in publications' glyph](https://genome.ucsc.edu/cgi-bin/hgc?c=chr17&l=38082721&r=38082892&o=38082806&t=38082807&g=pubsMarkerSnp&i=rs12603332&db=hg19)
+"SNP" stands for "single nucleotide polymorphism".  This is a simple
+type of genetic variation that has been found
+to associate with potential biological effects.  A SNP is
+a single well-defined location in the (reference) genome that is "polymorphic".  
+Typically there is a given base present at the SNP location for the majority
+of individuals, but some minority of individuals have an alternate base present.
+We typically refer these base values as the reference allele and the rare allele.
+A genomic location is regarded as a SNP if some 
+fraction of individuals (typically at least 1\% of a population) harbor the rare allele.
+"SNP genotyping" refers to the assembly of data on DNA content of individuals at
+SNP locations -- individuals can be homozygous rare, heterozygous (have the reference
+allele on one strand, the alternate allele on the other) or homozygous reference.
+
+Note 
+[the 'SNPs in publications' glyph](https://genome.ucsc.edu/cgi-bin/hgc?c=chr17&l=38082721&r=38082892&o=38082806&t=38082807&g=pubsMarkerSnp&i=rs12603332&db=hg19) 
+in the genome browser snapshot for ORMDL3 above.  The glyph harbors a link to
+a series of publications that have shown health effects of genetic variation in this location.
+The titles of the publications are
+_Association of genetic variants in chromosome 17q21 and adult-onset asthma in a Chinese Han population_ (2011),
+and 
+_Allele-Specific Chromatin Remodeling in the ZPBP2/GSDMB/ORMDL3 Locus Associated with the Risk of Asthma and Autoimmune Disease_ (2009).
+These are reports from basic projects in genetic epidemiology, stemming from observations of
+genetic variation in a region of chromosome 17 connected with lung and autoimmune diseases.
+
+
 
 ## mRNA abundance estimates: depicting transcriptional states
 
@@ -310,15 +338,15 @@ of the gene to set up a scanning parameter to focus the data extract.
 ```{r domo,fig=TRUE,fig.height=4}
 library(Rsamtools)
 library(ggbio)
-hnrnpc_param = ScanBamParam(which=GRanges("chr14", IRanges(21.67e6,21.74e6)))
+hnrnpc_param = 
+   ScanBamParam(which=GRanges("chr14", IRanges(21.67e6,21.74e6)))
 limr1 = readGappedReads(bf1, param=hnrnpc_param, use.names=TRUE)
 autoplot(limr1, geom="line", stat="coverage") + ylim(0,900)
 ```
 
-Later we will examine data from the knocked-down samples and examine
-the pairing of reads in more detail.
+In exercises you will verify that the knockdown experiment succeeded.
 
-<!-
+<!--
 pr1 = readGAlignmentPairs(bf1, param=ScanBamParam(what="seq"))
 -->
 
