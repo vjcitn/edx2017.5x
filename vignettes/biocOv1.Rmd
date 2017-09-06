@@ -35,6 +35,10 @@ library(RNAseqData.HNRNPC.bam.chr14)
 library(GenomicAlignments)
 library(Rsamtools)
 library(ggbio)
+library(erma)
+suppressMessages({
+ermaset=makeErmaSet()
+)}
 })
 })
 ```
@@ -263,18 +267,34 @@ getSeq(Hsapiens, myr)
 
 ## SNPs: cataloging population-level variation in DNA sequence
 
+### Basic concepts
+
 "SNP" stands for "single nucleotide polymorphism".  This is a simple
-type of genetic variation that has been found
-to associate with potential biological effects.  A SNP is
-a single well-defined location in the (reference) genome that is "polymorphic".  
-Typically there is a given base present at the SNP location for the majority
+type of genetic variation useful in genetic epidemiology.
+A SNP is a location in the (reference) genome that is _polymorphic_:
+there is a given base present at the SNP location for the majority
 of individuals, but some minority of individuals have an alternate base present.
-We typically refer these base values as the reference allele and the rare allele.
+The nucleotide codes are also called _alleles_.  We focus on
+_biallelic_ SNP, for which the possible genotypes can be
+generically described as A/A, A/B, or B/B.
+
+For a given biallelic SNP,
+the nucleotide most frequently observed is called the common allele,
+and the less frequently observed nucleotide is called the rare allele.
 A genomic location is regarded as a SNP if some 
-fraction of individuals (typically at least 1\% of a population) harbor the rare allele.
-"SNP genotyping" refers to the assembly of data on DNA content of individuals at
-SNP locations -- individuals can be homozygous rare, heterozygous (have the reference
+fraction of individuals (typically at least 1\% of a geographically
+or ethnically defined population) harbor the rare allele.
+"SNP genotyping" refers to the determination of DNA content of individuals at
+SNP locations -- individuals can be homozygous for the rare allele, heterozygous (have the reference
 allele on one strand, the alternate allele on the other) or homozygous reference.
+
+When multiple SNP are considered, it is possible to introduce the concept of
+_phase_ for individuals heterozygous at multiple locations.  With phased genotypes
+it is possible to distinguish configurations of nucleotides that occupy
+the same chromosome, and are thus derived together from a given
+parental chromosome.
+
+### Epidemiological utility
 
 Note 
 [the 'SNPs in publications' glyph](https://genome.ucsc.edu/cgi-bin/hgc?c=chr17&l=38082721&r=38082892&o=38082806&t=38082807&g=pubsMarkerSnp&i=rs12603332&db=hg19) 
@@ -286,6 +306,55 @@ and
 _Allele-Specific Chromatin Remodeling in the ZPBP2/GSDMB/ORMDL3 Locus Associated with the Risk of Asthma and Autoimmune Disease_ (2009).
 These are reports from basic projects in genetic epidemiology, stemming from observations of
 genetic variation in a region of chromosome 17 connected with lung and autoimmune diseases.
+
+### Concrete example
+
+The `r Biocpkg("VariantAnnotation")` package includes a number
+of utilities for working with and interpreting SNP data.  The following
+output illustrates some of the fundamental components we've mentioned.
+
+```{r docod,echo=FALSE,results="hide"}
+library(VariantAnnotation)
+suppressMessages({
+example(predictCoding)
+})
+```{r lkcoooo}
+#
+# after library(VariantAnnotation); example(predictCoding)
+#
+head(coding1[,c("REF", "ALT", "REFCODON", "VARCODON")])
+```
+<!--
+GRanges object with 6 ranges and 4 metadata columns:
+                  seqnames               ranges strand |            REF
+                     <Rle>            <IRanges>  <Rle> | <DNAStringSet>
+      rs114335781    chr22 [50301422, 50301422]      - |              G
+        rs8135963    chr22 [50301476, 50301476]      - |              T
+  22:50301488_C/T    chr22 [50301488, 50301488]      - |              C
+  22:50301494_G/A    chr22 [50301494, 50301494]      - |              G
+  22:50301584_C/T    chr22 [50301584, 50301584]      - |              C
+      rs114264124    chr22 [50302962, 50302962]      - |              C
+                                 ALT       REFCODON       VARCODON
+                  <DNAStringSetList> <DNAStringSet> <DNAStringSet>
+      rs114335781                  A            ATC            ATT
+        rs8135963                  C            GCA            GCG
+  22:50301488_C/T                  T            CCG            CCA
+  22:50301494_G/A                  A            CAC            CAT
+  22:50301584_C/T                  T            CCG            CCA
+      rs114264124                  T            CGG            CAG
+  -------
+  seqinfo: 1 sequence from hg19 genome; no seqlengths
+-->
+This can be regarded as a table with six rows, one per SNP.  Some
+of the SNP have 'rs' identifiers to the left, indicating presence in the
+(NCBI dbSNP)[https://www.ncbi.nlm.nih.gov/projects/SNP/] catalog. 
+Others have '22:' identifiers giving position and nucleotide options
+for variants that have not yet been catalogued in dbSNP, perhaps
+because they are not observed with sufficient frequency in populations
+studied to date.  The REF and ALT columns give the reference and alternate
+allele codes, and the REFCODON and VARCODON columns give the triplets
+in the reference and alternate genome that will be translated to amino
+acids.
 
 
 
@@ -351,6 +420,53 @@ pr1 = readGAlignmentPairs(bf1, param=ScanBamParam(what="seq"))
 -->
 
 ## Epigenomics: how regulatory factors bind to DNA to control transcription and translation
+
+Numerous genome-scale assays have been devised 
+to investigate epigenetic phenomena.  The methods and
+implications are diverse and we give two very
+limited examples to sketch the landscape.
+
+### Cell-type specific regulatory roles of chromosomal regions
+
+How do cells that possess a common blueprint (DNA sequence) differentiate
+into units performing distinct roles in different organs or
+organ components (for example, eye and tooth, or cornea and lens)?
+The linear DNA sequence shared by all cells in an individual cannot
+explain this.  The [Epigenomics Roadmap project](http://www.roadmapepigenomics.org/)
+collects results of thousands of experiments that help to characterize
+aspects of DNA accessibility and modification that regulate gene
+expression and cell function.  The `r Biocpkg("erma")` package
+includes data and code to facilitate exploration of some of the
+outcomes of the project.  In the figure below, the regulatory
+architecture upstream of ORMDL3 is sketched for five different
+cell types.  We use the `csProfile` function of `r Biocpkg("erma")`
+to depict chromatin state profiles as computed using
+the [chromImpute algorithm](http://www.biolchem.ucla.edu/labs/ernst/ChromImpute/)
+of [Ernst and Kellis](http://www.nature.com/nbt/journal/v33/n4/full/nbt.3157.html).
+Each horizontal band corresponds to a cell type, with colored regions
+indicating the predicted functional role of epigenetically modified
+chromosomal sequence, over genomic coordinates given at the bottom.
+
+```{r doer,eval=FALSE}
+library(erma)
+ermaset = makeErmaSet()
+csProfile(ermaset[,1:5], 
+```
+    "ORMDL3", shortCellType=FALSE)
+```{r lkprom1,fig=TRUE,results="hide",echo=FALSE}
+suppressMessages({
+csProfile(ermaset[,1:5], "ORMDL3", shortCellType=FALSE)
+})
+```
+The black vertical line is positioned at the actual transcription
+start site (TSS) for ORMDL3, shared for all cell types.  We see that T and
+B cells may be distinguished by the presence or absence of a
+"poised promoter" type region about 1500 bases upstream of the TSS.
+Decoding of the
+functional terminology of
+the color key
+can be done using the [erma vignette](http://bioconductor.org/packages/release/bioc/vignettes/erma/inst/doc/erma.html).
+
 
 ## Other crucial assay classes: Proteomics, metabolomics, microbiomics, whole-genome editing
 
