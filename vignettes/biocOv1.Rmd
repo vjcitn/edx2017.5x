@@ -36,9 +36,11 @@ library(GenomicAlignments)
 library(Rsamtools)
 library(ggbio)
 library(erma)
+library(VariantAnnotation)
+#library(pRoloc)
 suppressMessages({
 ermaset=makeErmaSet()
-)}
+})
 })
 })
 ```
@@ -166,6 +168,11 @@ The figure below is a snapshot of the [build report](http://bioconductor.org/che
 im = readPNG("buildRep.png")
 grid.raster(im)
 ```
+
+The six-column subtable in the upper half of the display
+includes a column "Installed pkgs", with entry 1857 for
+the linux platform.  This number varies between platforms
+and is generally increasing over time for the devel branch.
 
 
 ## Putting it together
@@ -313,7 +320,7 @@ The `r Biocpkg("VariantAnnotation")` package includes a number
 of utilities for working with and interpreting SNP data.  The following
 output illustrates some of the fundamental components we've mentioned.
 
-```{r docod,echo=FALSE,results="hide"}
+```{r docod,echo=FALSE,results="hide",cache=TRUE}
 library(VariantAnnotation)
 suppressMessages({
 example(predictCoding)
@@ -450,9 +457,8 @@ chromosomal sequence, over genomic coordinates given at the bottom.
 ```{r doer,eval=FALSE}
 library(erma)
 ermaset = makeErmaSet()
-csProfile(ermaset[,1:5], 
+csProfile(ermaset[,1:5], "ORMDL3", shortCellType=FALSE)
 ```
-    "ORMDL3", shortCellType=FALSE)
 ```{r lkprom1,fig=TRUE,results="hide",echo=FALSE}
 suppressMessages({
 csProfile(ermaset[,1:5], "ORMDL3", shortCellType=FALSE)
@@ -467,10 +473,339 @@ functional terminology of
 the color key
 can be done using the [erma vignette](http://bioconductor.org/packages/release/bioc/vignettes/erma/inst/doc/erma.html).
 
+The use of blocked bands to illustrate variation in epigenomic
+characteristics over genomic coordinates is extremely crude.  It
+reflects the reduction of information starting with short reads
+obtained
+in ChIP-seq experiments, proceeding through read alignment and peak
+scoring, culminating in machine learning of associations between
+peak configurations of multiple epigenomic marks and functional
+state of chromosomal sequence on which the marks are found.
+Statistical characterization of uncertainty of the inferred
+states requires additional research.  Additionally, understanding
+of contexts of variability (between individuals, within
+individuals over time) of chromatin states as inferred
+in this display, will require additional work.
+
+### Analysis of differential methylation with whole-genome bisulfite sequencing
+
+The role of epigenetic modifications of genes involved in
+cancer is a target of intensive study.  Kasper Hansen and colleagues
+developed the `r Biocpkg("bsseq")` package to help identify
+and interpret differential methylated regions of the genome,
+with application to comparison of matched tumor-normal sample
+pairs.  As we have seen before, the data are readily
+oriented along genomic coordinates.  Statistical methods
+for smoothing noisy measures of methylation frequency and
+testing for tumor-normal disparity lead to displays like
+the following.
+
+Here we attach the packages that provide example data
+and analytic functions for an experiment involving three
+matched tumor-normal pairs, and examine the basic
+sequencing data.
+```{r lkbsseq,fig=TRUE}
+library(bsseq)
+library(bsseqData)
+BS.cancer.ex
+```
+The display of `BS.cancer.ex` indicates its potential
+for a role in a 'smoothing' process.  The sample
+information can be obtained with the `colData`
+method.
+```{r lkcold}
+colData(BS.cancer.ex)
+```
+
+In exercises we will examine these objects in more details.
+The ultimate result of the workflow for whole genome
+bisulfite sequencing is a catalog of differentially
+methylated regions.  In the `bsseqData` package,
+we have snapshots of data at various stages.  The .tstat
+object includes results of large-scale testing for
+differential methylation between tumor and
+normal tissues, accounting for biological
+variability between samples.  The .fit object includes
+the result of sample-specific smoothing of methylation
+measures, over genomic coordinates.
+
+```{r dodmr,fig=TRUE}
+dmrs0 <- dmrFinder(BS.cancer.ex.tstat)
+dmrs <- subset(dmrs0, n >= 3 & abs(meanDiff) >= 0.1)
+BS.cancer.ex.fit$col = rep(c("red", "blue"), c(3,3))
+plotRegion(BS.cancer.ex.fit, dmrs[1,], 
+      extend = 5000, addRegions = dmrs)
+```
 
 ## Other crucial assay classes: Proteomics, metabolomics, microbiomics, whole-genome editing
 
-## Coda: the single cell revolution
+### Organelle proteomics
+
+Thorough characterization of gene function depends upon
+many sorts of experiments at different scales.  The `r Biocpkg("pRoloc")`
+package addresses an approach to localization of proteins to 
+organelles.  An interesting resource provided here is a catalog
+of organelle marker proteins:
+
+```{r drop,echo=FALSE,results="hide"}
+#detach("package:png", unload=TRUE)
+detach("package:ggbio", unload=TRUE)
+suppressWarnings({
+suppressPackageStartupMessages({
+library(pRoloc)
+})
+})
+```
+
+```{r domark}
+library(pRoloc)
+pm = pRolocmarkers("hsap") # H. sapiens
+table(pm)
+names(head(pm[pm=="Proteasome"]))
+```
+
+These are UNIPROT identifiers whose association to genes or GO categories
+or pathways can be assessed with annotation infrastructure that we will
+review later in the course.
+
+```{r drop2,echo=FALSE,results="hide"}
+detach("package:pRoloc", unload=TRUE)
+suppressWarnings({
+suppressPackageStartupMessages({
+library(phyloseq)
+})
+})
+```
+
+### Metabolomics: small-molcule fingerprints of cellular processes
+
+Mass spectrometry is typically employed to 
+assay biosamples for metabolites.  A number of Bioconductor
+packages address capture and interpretation of mass spec
+experiments for proteomic or metabolomic experiments.
+See the [metabolomic 
+task view](http://bioconductor.org/packages/release/BiocViews.html#___Metabolomics) for examples and vignettes.  Some details
+will be explored later in the course.
+
+The [hmdbQuery package](https://github.com/vjcitn/hmdbQuery) (presently
+available only in github, in review at Bioconductor) helps with downstream
+interpretation of metabolomics experiments.  
+The package is an interface to the [Human Metabolome Database](http://www.hmdb.ca).
+Two basic
+utilities are provided: a collection of tables mapping
+HMDB-catalogued
+metabolites to proteins, genes, and diseases, and a
+function that will retrieve a detailed record about
+a metabolite, given the HMDB identifier.
+The tables provided are facets of a snapshot of the HMDB
+taken 23 Sept. 2017.  These can be updated using scripts
+provided in the package.
+
+Let's begin with a peek at the metabolite-disease mapping
+table.
+
+```{r set2,echo=FALSE,results="hide"}
+suppressMessages({
+suppressPackageStartupMessages({
+library(hmdbQuery)
+data(hmdb1)
+data(hmdb_disease)
+library(rtracklayer)
+library(CrispRVariants)
+library(sangerseqR)
+})
+})
+```
+```{r lkdisss}
+dim(hmdb_disease)
+head(hmdb_disease)
+```
+
+
+```{r lkent,eval=FALSE}
+library(hmdbQuery)
+HmdbEntry(id="HMDB0000001")
+```
+```{r lkd,echo=FALSE}
+hmdb1
+```
+
+### Microbiome analysis
+
+A nice overview of history and concepts of
+microbiome studies is given by
+[Morgan and Huttenhower (2012)](doi:10.1371/journal.pcbi.1002808).
+These authors describe how classical microbiology was highly
+dependent on cell culturing methodologies.  Current approaches
+to identifying
+microbial communities use DNA sequencing to identify
+organisms for which culturing protocols do not exist.
+Reference genome sequences are available for only a small
+minority of microbes present in, for example, the human
+gut.  Thus methods of phylogenetics are applied to derive
+inferences on existence and abundance of species in microbiome
+samples.  A key step is forming clusters of sequences using
+measures of sequence similarity, thus defining _operational
+taxonomic units_ (OTUs).
+
+An illustrative example is given in the `r Biocpkg("phyloseq")`
+package.  A dataset is provided that was used to demonstrate
+elevation in the abundance of _Fusobacterium_ in colon
+tumor tissue when compared to matched controls.
+
+In the following code snippet, we use `r Biocpkg("phyloseq")`
+to acquire data generated using [QIIME](http://www.qiime.org).
+```{r lkph}
+library(phyloseq)
+filepath = system.file("extdata", 
+   "study_1457_split_library_seqs_and_mapping.zip", package="phyloseq")
+kostic = microbio_me_qiime(filepath)
+```
+An excerpt from the taxonomy table associated with this experiment
+shows that OTUs are linked to known organism classes with
+varying levels of specificity.
+```{r lktax}
+tax_table(kostic)[1:4,]
+```
+The read counts for two different OTUs in 10 samples follow:
+```{r lkct}
+otu_table(kostic)["304309",1:10]
+otu_table(kostic)["358030",1:10]
+```
+
+
+
+### A glimpse of CRISPR
+
+
+```{r docr,cache=TRUE,echo=FALSE,results="hide"}
+suppressWarnings({
+suppressMessages({
+suppressPackageStartupMessages({
+library(CrispRVariants)
+library(sangerseqR)
+
+# List AB1 filenames, get sequence names,  make names for the fastq files
+# Note that we only include one ab1 file with CrispRVariants because
+# of space constraints.  All bam files are included
+
+data_dir <- system.file(package="CrispRVariants", "extdata/ab1/ptena")
+fq_dir <- tempdir()
+ab1_fnames <- dir(data_dir, "ab1$", recursive=TRUE, full=TRUE)
+sq_nms <- gsub(".ab1","",basename(ab1_fnames))
+
+# Replace spaces and slashes in filename with underscores
+fq_fnames  <- paste0(gsub("[\ |\\/]", "_", dirname(ab1_fnames)), ".fastq")
+
+# abifToFastq to read AB1 files and write to FASTQ
+dummy <- mapply( function(u,v,w) {
+        abifToFastq(u,v,file.path(fq_dir,w))
+}, sq_nms, ab1_fnames, fq_fnames)
+
+
+## ---- message=FALSE--------------------------------------------------------
+# The metadata and bam files for this experiment are included with CrispRVariants
+md_fname <- system.file(package="CrispRVariants", "extdata/metadata/metadata.xls")
+md <- gdata::read.xls(md_fname, 1)
+md
+
+# Get the bam filenames from the metadata table
+bam_dir <- system.file(package="CrispRVariants", "extdata/bam")
+bam_fnames <- file.path(bam_dir, md$bamfile)
+
+# check that all files exist
+all( file.exists(bam_fnames) )
+
+## ---- message=FALSE--------------------------------------------------------
+# Represent the guide as a GenomicRanges::GRanges object
+gd_fname <- system.file(package="CrispRVariants", "extdata/bed/guide.bed")
+gd <- rtracklayer::import(gd_fname)
+gd
+
+## ---- message=FALSE--------------------------------------------------------
+gdl <- GenomicRanges::resize(gd, width(gd) + 10, fix = "center")
+
+## ---- eval=FALSE-----------------------------------------------------------
+#  system("samtools faidx GRCHz10.fa.gz")
+#  
+#  reference=system(sprintf("samtools faidx GRCHz10.fa.gz %s:%s-%s",
+#                           seqnames(gdl)[1], start(gdl)[1], end(gdl)[1]),
+#                   intern = TRUE)[[2]]
+#  
+#  # The guide is on the negative strand, so the reference needs to be reverse complemented
+#  reference=Biostrings::reverseComplement(Biostrings::DNAString(reference))
+#  save(reference, file = "ptena_GRCHz10_ref.rda")
+
+## --------------------------------------------------------------------------
+ref_fname <- system.file(package="CrispRVariants", "extdata/ptena_GRCHz10_ref.rda")
+load(ref_fname)
+reference
+
+## ---- tidy = FALSE---------------------------------------------------------
+# First read the alignments into R.  The alignments must include
+# the read sequences and the MD tag
+alns <- GenomicAlignments::readGAlignments(bam_fnames[[1]], 
+          param = Rsamtools::ScanBamParam(tag = "MD", what = c("seq", "flag")),
+          use.names = TRUE)
+
+# Then reconstruct the reference for the target region.
+# If no target region is given, this function will reconstruct
+# the complete reference sequence for all reads.
+rfa <- refFromAlns(alns, gdl)
+
+# The reconstructed reference sequence is identical to the sequence
+# extracted from the reference above
+print(rfa == reference)
+
+## ---- message=FALSE--------------------------------------------------------
+# Note that the zero point (target.loc parameter) is 22
+crispr_set <- readsToTarget(bam_fnames, target = gdl, reference = reference,
+                            names = md$Short.name, target.loc = 22)
+crispr_set
+
+# The counts table can be accessed with the "variantCounts" function
+vc <- variantCounts(crispr_set)
+print(class(vc))
+
+## ---- eval = FALSE---------------------------------------------------------
+#  # In R
+#  library(GenomicFeatures)
+#  gtf_fname <- "Danio_rerio.GRCz10.81_chr17.gtf"
+#  txdb <- GenomicFeatures::makeTxDbFromGFF(gtf_fname, format = "gtf")
+#  saveDb(txdb, file= "GRCz10_81_chr17_txdb.sqlite")
+
+## ---- echo=FALSE, message=FALSE--------------------------------------------
+library(GenomicFeatures)
+txdb_fname <- system.file("extdata/GRCz10_81_ptena_txdb.sqlite", 
+                          package="CrispRVariants")
+txdb <- loadDb(txdb_fname)
+
+## ---- message = FALSE------------------------------------------------------
+# The gridExtra package is required to specify the legend.key.height 
+# as a "unit" object.  It is not needed to call plotVariants() with defaults
+library(gridExtra)
+
+# Match the clutch id to the column names of the variants
+group <- md$Group
+
+## ----ptena-plot, fig.width = 8.5, fig.height = 7.5, message = FALSE, fig.cap = "(Top) schematic of gene structure showing guide location (left) consensus sequences for variants (right) variant counts in each embryo."----
+})
+})
+})
+```
+```{r fopl,fig=TRUE,echo=FALSE}
+suppressWarnings({
+suppressMessages({
+p <- plotVariants(crispr_set, txdb = txdb, gene.text.size = 8, 
+    row.ht.ratio = c(1,8), col.wdth.ratio = c(4,2),
+    plotAlignments.args = list(line.weight = 0.5, ins.size = 2, 
+                               legend.symbol.size = 4),
+    plotFreqHeatmap.args = list(plot.text.size = 3, x.size = 8, group = group, 
+                                legend.text.size = 8, 
+                                legend.key.height = grid::unit(0.5, "lines"))) 
+})
+})
+```
 
 # Data structures for genome-scale assays
 

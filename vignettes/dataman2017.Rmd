@@ -1,0 +1,176 @@
+---
+title: "Managing genome-scale experimental data with Bioconductor"
+author: "Vincent J. Carey"
+package: edx2017.5x
+output: 
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+    css: styles.css
+abstract: >
+  We discuss the general problem of coordinating diverse information
+  types arising in genome-scale experiments.  S4 classes and
+  methods are introduced and the NCBI Gene Expression Omnibus
+  is used to illustrate a strategy for managing microarray archives.
+  The SummarizedExperiment class is reviewed for both in-memory
+  and out-of-memory assay representations.  Methods for
+  working with cloud-resident
+  archives of DNA variants and multiomic experiments are presented.
+vignette: >
+  %\VignetteIndexEntry{Bioconductor strategies for management of genome-scale data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}  
+---
+
+```{r setup, echo=FALSE, results="hide"}
+suppressWarnings({
+suppressMessages({
+suppressPackageStartupMessages({
+library(GEOquery)
+library(erma)
+library(RNAseqData.HNRNPC.bam.chr14)
+library(ph525x)
+})
+})
+})
+```
+
+# Introduction
+
+Data management is often regarded as a specialized and tedious
+dimension of scientific research.  Because failures of data management
+are extremely costly in terms of resources and reputation, highly
+reliable and efficient methods are essential.
+Customary lab science practice of maintaining data
+in spreadsheets is regarded as risky.  We want to add value
+to data by making it easier to follow
+reliable data management practices.
+
+In Bioconductor, principles that guide software development are
+applied in data management strategy.  High value accrues to
+data structures that are modular and extensible.  Packaging
+and version control protocols apply to data class definitions.
+We will motivate and illustrate these ideas by giving examples
+of transforming spreadsheets to semantically rich objects,
+working with the NCBI GEO archive, dealing with families of
+BAM and BED files, and using external storage to foster
+coherent interfaces to large multiomic archives like TCGA.
+
+# Coordinating information from diverse tables, gains from integration
+
+## A demonstration package: tables from GSE5859Subset
+
+GSE5859Subset is a package with expression data derived from
+a study of genetics of gene expression.  Upon attachment and
+loading of package data, we have three data elements:
+```{r dogs}
+library(GSE5859Subset)
+data(GSE5859Subset)
+dim(geneExpression)
+dim(geneAnnotation)
+dim(sampleInfo)
+```
+
+How are these entities (one matrix and two data frames) related?
+```{r chkse}
+all.equal(sampleInfo$filename, colnames(geneExpression))
+all.equal(rownames(geneExpression), geneAnnotation$PROBEID)
+```
+Informally, we can think of `sampleInfo$filename` as a key
+for joining, row by row, the sample information table with a _transposed
+image_ of the gene expression table.  The `colnames` of the
+gene expression matrix link the columns of that matrix to samples
+enumerated in rows of `sampleInfo`.
+
+Likewise, the `rownames` of `geneExpression` coincide exactly
+with the `PROBEID` field of `geneAnnotation`.
+```{r chktx}
+options(digits=2)
+cbind(sampleInfo[1:3,], colnames(geneExpression)[1:3], 
+    t(geneExpression)[1:3,1:4])
+```
+
+## Binding the tables together in an ExpressionSet
+
+The `ExpressionSet` container manages all this information
+in one object.  To improve the visibility of nomenclature
+for genes and samples, we improve the annotation for
+the individual components.
+```{r doan}
+rownames(sampleInfo) = sampleInfo$filename
+rownames(geneAnnotation) = geneAnnotation$PROBEID
+```
+Now we make the `ExpressionSet`.
+```{r doexp}
+library(Biobase)
+es5859 = ExpressionSet(assayData=geneExpression)
+pData(es5859) = sampleInfo
+fData(es5859) = geneAnnotation
+es5859
+```
+
+One of the nice things about this arrangement is that
+we can easily select features using higher level
+concepts annotated in the `fData` and `pData` components.
+For example to obtain expression data for genes on the Y
+chromosome only:
+```{r dosel}
+es5859[which(fData(es5859)$CHR=="chrY"),]
+```
+
+A more up-to-date approach to combining these table types
+uses the `SummarizedExperiment` class, that we discuss below.
+
+# GEO and GEOQuery for expression array archives
+
+Data from all microarray experiments funded by USA National Institutes
+of Health should be deposited in the Gene Expression Omnibus (GEO).
+Bioconductor's `r Biocpkg("GEOquery")` package simplifies
+harvesting of this archive.
+
+## GEOmetadb
+
+There are results of tens of thousands of experiments in GEO.
+The `r Biocpkg("GEOmetadb")` includes tools to acquire and
+query a SQLite database with extensive annotation of GEO contents.
+The database retrieved in October 2017 was over 6 GB in size.
+Thus we do not require that you use this package.  If you are
+interested, the vignette is very thorough.  A view of the
+`gse` table is given here:
+
+```{r dogmd,fig=TRUE, echo=FALSE}
+metadb()
+```
+
+## getGEO: obtaining the ExpressionSet for a GEO series
+
+We have an especial interest in the genomics of glioblastoma
+and have identified a paper (PMID 27746144) addressing a metabolic pathway
+whose manipulation may enhance treatment development strategies.
+Affymetrix Primeview arrays were used,
+with quantifications available in GEO.  We use `getGEO`
+to acquire an image of these data.
+```{r dogetg, cache=TRUE}
+library(GEOquery)
+glioMA = getGEO("GSE78703")
+glioMA[[1]]
+```
+
+
+
+# GenomicFiles: families of files of a given type; erma
+
+## BAM collections
+
+## BED collections
+
+# SummarizedExperiment: accommodating more diverse feature concepts
+
+# External storage of large assay data -- HDF5Array, saveHDF5SummarizedExperiment
+
+# Managing information on large numbers of DNA variants
+
+# Multiomics: MultiAssayExperiment, example of TCGA
+
+# Cloud-oriented management strategies: CGC and GDC concepts
+

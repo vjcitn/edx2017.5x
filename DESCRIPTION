@@ -1,7 +1,7 @@
 Package: edx2017.5x
 Title: Bioconductor materials for edX ph525.5x
 Description: This package provides course materials for edX ph525.5x.
-Version: 0.0.1
+Version: 0.0.2
 Author: Vince Carey
 Suggests: 
 Depends: BiocStyle, markdown
