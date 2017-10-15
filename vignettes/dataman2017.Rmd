@@ -121,12 +121,14 @@ es5859[which(fData(es5859)$CHR=="chrY"),]
 A more up-to-date approach to combining these table types
 uses the `SummarizedExperiment` class, that we discuss below.
 
-# GEO and GEOQuery for expression array archives
+# GEO, GEOQuery, ArrayExpress for expression array archives
 
 Data from all microarray experiments funded by USA National Institutes
 of Health should be deposited in the Gene Expression Omnibus (GEO).
 Bioconductor's `r Biocpkg("GEOquery")` package simplifies
-harvesting of this archive.
+harvesting of this archive.  The European Molecular Biology Laboratories
+sponsor ArrayExpress, which can be queried using the `r Biocpkg("ArrayExpress")`
+package.
 
 ## GEOmetadb
 
@@ -152,9 +154,75 @@ with quantifications available in GEO.  We use `getGEO`
 to acquire an image of these data.
 ```{r dogetg, cache=TRUE}
 library(GEOquery)
-glioMA = getGEO("GSE78703")
-glioMA[[1]]
+glioMA = getGEO("GSE78703")[[1]]
+glioMA
 ```
+In exercises we will see how to use this object
+to check on the assertion that treatment with LXR-623
+affects expression of gene ABCA1.
+
+## ArrayExpress: searching and harvesting from EMBL-EBI ArrayExpress
+
+``The [ArrayExpress Archive of Functional Genomics Data](https://www.ebi.ac.uk/arrayexpress/)
+stores 
+data from high-throughput functional genomics experiments, and provides 
+these data for reuse to the research community.''  Until recently ArrayExpress
+imported all expression data from NCBI GEO.
+
+The `r Biocpkg("ArrayExpress")` permits direct interrogation
+of the EMBL-EBI archive, with `queryAE`.  We'll examine
+a small subset of the results.
+
+```{r donano,cache=TRUE}
+library(ArrayExpress)
+sets = queryAE(keywords = "glioblastoma", species = "homo+sapiens")
+dim(sets)
+sets[5:7,-c(7,8)]
+```
+
+We see a PubMed ID for one of the experiments retrieved here, and
+acquire the raw data with the `getAE` function.
+
+```{r lknan,cache=TRUE}
+initdir = dir()
+nano = getAE("E-MTAB-5797")
+```
+
+This particular invocation will populate the working
+directory with files related to the experiment:
+```
+afterget = dir()
+setdiff(afterget, initdir)
+##  [1] "9406922003_R01C01_Grn.idat" "9406922003_R01C01_Red.idat"
+##  [3] "9406922003_R02C01_Grn.idat" "9406922003_R02C01_Red.idat"
+##  [5] "9406922003_R03C02_Grn.idat" "9406922003_R03C02_Red.idat"
+##  [7] "9406922003_R04C02_Grn.idat" "9406922003_R04C02_Red.idat"
+##  [9] "9406922003_R05C01_Grn.idat" "9406922003_R05C01_Red.idat"
+## [11] "A-MEXP-2255.adf.txt"        "E-MTAB-5797.idf.txt"       
+## [13] "E-MTAB-5797.raw.1.zip"      "E-MTAB-5797.sdrf.txt"
+```
+
+Below we will demonstrate import and inspection of this data.
+
+# SummarizedExperiment: accommodating more diverse feature concepts
+
+In the microarray era, assay targets were determined by the
+
+
+## An RNA-seq experiment
+
+## Handling the ArrayExpress deposit of Illumina 450k Methylation arrays
+
+```
+library(data.table)
+sd5797 = fread("E-MTAB-5797.sdrf.txt")
+library(minfi)
+pref = unique(substr(dir(patt="idat"),1,17))
+raw = read.metharray(pref)
+pp = preprocessQuantile(raw)
+```
+
+# External storage of large assay data -- HDF5Array, saveHDF5SummarizedExperiment
 
 
 
@@ -163,10 +231,6 @@ glioMA[[1]]
 ## BAM collections
 
 ## BED collections
-
-# SummarizedExperiment: accommodating more diverse feature concepts
-
-# External storage of large assay data -- HDF5Array, saveHDF5SummarizedExperiment
 
 # Managing information on large numbers of DNA variants
 
