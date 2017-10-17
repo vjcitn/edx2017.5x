@@ -26,10 +26,18 @@ vignette: >
 suppressWarnings({
 suppressMessages({
 suppressPackageStartupMessages({
+library(Biobase)
 library(GEOquery)
 library(erma)
 library(RNAseqData.HNRNPC.bam.chr14)
 library(ph525x)
+library(airway)
+library(GSE5859Subset)
+library(annotate)
+library(minfi)
+library(locfit)
+library(IlluminaHumanMethylation450kmanifest)
+library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 })
 })
 })
@@ -55,6 +63,8 @@ of transforming spreadsheets to semantically rich objects,
 working with the NCBI GEO archive, dealing with families of
 BAM and BED files, and using external storage to foster
 coherent interfaces to large multiomic archives like TCGA.
+
+<a name="coord"></a>
 
 # Coordinating information from diverse tables, gains from integration
 
@@ -90,6 +100,8 @@ cbind(sampleInfo[1:3,], colnames(geneExpression)[1:3],
     t(geneExpression)[1:3,1:4])
 ```
 
+<a name="exprset"></a>
+
 ## Binding the tables together in an ExpressionSet
 
 The `ExpressionSet` container manages all this information
@@ -118,10 +130,59 @@ chromosome only:
 es5859[which(fData(es5859)$CHR=="chrY"),]
 ```
 
+The full set of methods to which ExpressionSet instances respond
+can be seen using
+```{r lkcla}
+methods(class="ExpressionSet")
+```
+The most important methods are 
+
+- `exprs()`: get the numerical expression values
+- `pData()`: get the sample-level data
+- `fData()`: get feature-level data
+- `annotation()`: get a tag that identifies nomenclature for feature names
+- `experimentData()`: get a [MIAME](https://www.ncbi.nlm.nih.gov/geo/info/MIAME.html)-compliant metadata structure
+
+Note that many methods have `setter` versions, e.g., `exprs<-` can be used
+to assign expression values.  Also, all components are optional.  Thus our `es5859`
+has no content for `annotation` or `experimentData`.  We can improve the
+self-describing capacity of this object as follows.  First, set the annotation field:
+```{r doannset}
+annotation(es5859) = "hgfocus.db" # need to look at GSE record in GEO, and know .db
+```
+Second, acquire a MIAME-compliant document of metadata about the experiment.
+```{r getann,cache=TRUE}
+library(annotate)
+mi = pmid2MIAME("17206142")
+experimentData(es5859) = mi
+es5859
+```
+Now, for example, the `abstract` method will function well:
+```{r lkabs}
+nchar(abstract(es5859))
+substr(abstract(es5859),1,50)
+```
+
 A more up-to-date approach to combining these table types
 uses the `SummarizedExperiment` class, that we discuss below.
 
-# GEO, GEOQuery, ArrayExpress for expression array archives
+<a name="endo"></a>
+
+## The endomorphism concept
+
+A final remark about the ExpressionSet container design:  Suppose
+`X` is an ExpressionSet.  The bracket operator has been defined so
+that whenever `G` and `S` are suitable vectors identifying features
+and samples respectively, `X[G, S]` is an ExpressionSet with features
+and samples restricted to those identified in `G` and `S`.  All operations
+that are valid for `X` are valid for `X[G, S]`.  This property is
+called the _endomorphism of ExpressionSet with respect to subsetting
+with bracket_.
+
+
+<a name="geoquery"></a>
+
+# GEO, GEOquery, ArrayExpress for expression array archives
 
 Data from all microarray experiments funded by USA National Institutes
 of Health should be deposited in the Gene Expression Omnibus (GEO).
@@ -159,7 +220,9 @@ glioMA
 ```
 In exercises we will see how to use this object
 to check on the assertion that treatment with LXR-623
-affects expression of gene ABCA1.
+affects expression of gene ABCA1.  The associated PubMed ID is 27746144.
+
+<a name="arrayexp"></a>
 
 ## ArrayExpress: searching and harvesting from EMBL-EBI ArrayExpress
 
@@ -204,29 +267,117 @@ setdiff(afterget, initdir)
 
 Below we will demonstrate import and inspection of this data.
 
+<a name="summexp"></a>
+
 # SummarizedExperiment: accommodating more diverse feature concepts
 
 In the microarray era, assay targets were determined by the
+content of the array in use.  
+Greater flexibility for targeted
+quantification is afforded by short read sequencing methods.
+Consequently, Bioconductor developers created a more flexible
+container for genome-scale assays.  A key idea is that
+quantified features of interested may be identified only
+by genomic coordinates.  It should be convenient to organize
+the assay values to permit interrogation using genomic coordinates
+only.  The general method `subsetByOverlaps` can be used
+with SummarizedExperiment instances, and accomplishes this aim.
 
+## General considerations
+
+The methods table for SummarizedExperiment is longer than that
+for ExpressionSet:
+```{r lkseme}
+methods(class="SummarizedExperiment")
+```
+
+Analogs of the key ExpressionSet methods are:
+
+- `assay()`: get the primary numerical assay quantifications, but note that multiple assays are supported and a list of assays can be acquired using `assays()`
+- `colData()`: get the sample-level data
+- `rowData()`: get feature-level data, with `rowRanges()` applicable when features are identified primarily through genomic coordinates
+- `metadata()`: get a list that may hold any relevant metadata about the experiment
+
+<a name="rnaseq"></a>
 
 ## An RNA-seq experiment
 
+We'll use the `r Biocpkg("airway")` package to illustrate the
+SummarizedExperiment concept.
+```{r doa}
+library(airway)
+data(airway)
+airway
+```
+Metadata are available in a list.
+```{r lkmeta}
+metadata(airway)
+```
+
+The matrix of quantified features has dimensions `r nrow(assay(airway))` by
+`r ncol(assay(airway))`.  The features that are quantified are exons, annotated
+using ENSEMBL nomenclature.
+```{r lkexo}
+rowRanges(airway)
+```
+
+We may be accustomed to gene-level quantification in microarray studies.
+Here the use of exon-level quantifications leads to complications
+for gene-level summaries.  For example, gene ORMDL3 has ENSEMBL
+identifier ENSG00000172057.  The coordinates supplied in this
+SummarizedExperiment are
+```{r lkrngs}
+rowRanges(airway)$ENSG00000172057
+```
+We will look closely at the `r Biocpkg("GenomicRanges")` infrastructure
+for working with structures like this.  To check for the existence of
+overlapping regions in this list of exon coordinates, we can use the
+`reduce` method:
+```{r lkredu}
+reduce(rowRanges(airway)$ENSG00000172057)
+```
+This shows that projecting from the set of exons to the genome leads to
+`r length(reduce(rowRanges(airway)$ENSG00000172057))` regions
+harboring subregions that may be transcribed.
+
+In addition to detailed annotation of
+features, we need to manage information on samples.
+This occurs using the `colData` method.
+The `$` operator can be used as a shortcut to get
+columns out of the sample data store.
+```{r lkcol}
+names(colData(airway))
+table(airway$dex) # main treatment factor
+```
+
+<a name="methy"></a>
+
 ## Handling the ArrayExpress deposit of Illumina 450k Methylation arrays
 
-```
+The SummarizedExperiment class was designed for use with all kinds
+of array or short read sequencing data.  The `getAE` call used
+above retrieved a number of files from ArrayExpress.
+
+The sample level data are in the `sdrf.txt` file:
+```{r lk450k}
 library(data.table)
 sd5797 = fread("E-MTAB-5797.sdrf.txt")
+head(sd5797[,c(3,16,18)])
+```
+
+The assay data are delivered in `idat` files.  We
+import these using `read.metharray()` from the `r Biocpkg("minfi")` package.
+```{r dominf, cache=TRUE}
 library(minfi)
-pref = unique(substr(dir(patt="idat"),1,17))
+pref = unique(substr(dir(patt="idat"),1,17)) # find the prefix strings
 raw = read.metharray(pref)
-pp = preprocessQuantile(raw)
+glioMeth = preprocessQuantile(raw) # generate SummarizedExperiment
+glioMeth
 ```
 
 # External storage of large assay data -- HDF5Array, saveHDF5SummarizedExperiment
 
-
-
-# GenomicFiles: families of files of a given type; erma
+# GenomicFiles: families of files of a given type
 
 ## BAM collections
 
