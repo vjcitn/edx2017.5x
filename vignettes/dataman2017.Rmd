@@ -38,6 +38,8 @@ library(minfi)
 library(locfit)
 library(IlluminaHumanMethylation450kmanifest)
 library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+library(BiocStyle)
+library(GenomicFiles)
 })
 })
 })
@@ -248,7 +250,7 @@ acquire the raw data with the `getAE` function.
 
 ```{r lknan,cache=TRUE}
 initdir = dir()
-nano = getAE("E-MTAB-5797")
+if (!file.exists("E-MTAB-5797.sdrf.txt")) nano = getAE("E-MTAB-5797")
 ```
 
 This particular invocation will populate the working
@@ -322,7 +324,8 @@ rowRanges(airway)
 ```
 
 We may be accustomed to gene-level quantification in microarray studies.
-Here the use of exon-level quantifications leads to complications
+Here the use of exon-level quantifications necessitates
+special computations
 for gene-level summaries.  For example, gene ORMDL3 has ENSEMBL
 identifier ENSG00000172057.  The coordinates supplied in this
 SummarizedExperiment are
@@ -339,6 +342,8 @@ reduce(rowRanges(airway)$ENSG00000172057)
 This shows that projecting from the set of exons to the genome leads to
 `r length(reduce(rowRanges(airway)$ENSG00000172057))` regions
 harboring subregions that may be transcribed.
+Details on how to summarize such counts to gene level are
+available [elsewhere in the genomicsclass book.](http://genomicsclass.github.io/book/pages/rnaseq_gene_level.html)
 
 In addition to detailed annotation of
 features, we need to manage information on samples.
@@ -356,7 +361,8 @@ table(airway$dex) # main treatment factor
 
 The SummarizedExperiment class was designed for use with all kinds
 of array or short read sequencing data.  The `getAE` call used
-above retrieved a number of files from ArrayExpress.
+above retrieved a number of files from ArrayExpress recording
+methylation quantification in glioblastoma tissues.
 
 The sample level data are in the `sdrf.txt` file:
 ```{r lk450k}
@@ -365,25 +371,254 @@ sd5797 = fread("E-MTAB-5797.sdrf.txt")
 head(sd5797[,c(3,16,18)])
 ```
 
-The assay data are delivered in `idat` files.  We
+The raw assay data are delivered in `idat` files.  We
 import these using `read.metharray()` from the `r Biocpkg("minfi")` package.
 ```{r dominf, cache=TRUE}
 library(minfi)
 pref = unique(substr(dir(patt="idat"),1,17)) # find the prefix strings
 raw = read.metharray(pref)
+raw
+```
+
+A number of algorithms have been proposed to transform
+the raw measures into biologically interpretable measures
+of relative methylation.  Here we use a quantile normalization
+algorithm to transform the red and green signals to measures
+of relative methylation (M) and estimates of local copy number (CN)
+in a SummarizedExperiment instance.
+```{r dominf2, cache=TRUE}
 glioMeth = preprocessQuantile(raw) # generate SummarizedExperiment
 glioMeth
 ```
 
+Later in the course we will work on the interpretation of
+the samples obtained in this study.
+
+<a name="extern"></a>
+
 # External storage of large assay data -- HDF5Array, saveHDF5SummarizedExperiment
+
+<a name="memmeas"></a>
+
+## Measuring memory consumption 
+
+In typical interactive use, R data are fully resident in memory.
+We can use the `gc` function to get estimates of quantity of
+memory used in a session.  Space devoted to Ncells is used to
+deal with language constructs such as parse trees and namespaces,
+while space devoted to Vcells is used to store numerical and character
+data loaded in the session.  On my macbook air, a vanilla startup
+of R yields
+```
+> gc()
+         used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 255849 13.7     460000 24.6   350000 18.7
+Vcells 533064  4.1    1023718  7.9   908278  7.0
+```
+After loading the `r Biocpkg("airway")` package:
+```
+> suppressMessages({library(airway)})
+> gc()
+          used  (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells 2772615 148.1    3886542 207.6  3205452 171.2
+Vcells 2302579  17.6    3851194  29.4  3651610  27.9
+```
+After we load the `airway` SummarizedExperiment instance
+```
+> data(airway)
+> gc()
+          used  (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells 3594720 192.0    5684620 303.6  3594935 192.0
+Vcells 6690732  51.1    9896076  75.6  6953991  53.1
+> dim(airway)
+[1] 64102     8
+```
+The memory to be managed will grow as the number of resources
+made available for interaction increases.  The functions
+`rm()` and `gc()` can be used manually to reduce memory consumption
+but this is seldom necessary or efficient.
+
+<a name="externHDF5"></a>
+
+## Demonstrating HDF5 for external storage
+
+[HDF5](https://en.wikipedia.org/wiki/Hierarchical_Data_Format) is a
+widely used data model for numerical arrays, with interfaces
+defined for a wide variety of scientific programming languages.
+The `r Biocpkg("HDF5Array")` package simplifies use of this
+system for managing large numerical arrays.
+
+```{r setuph, echo=FALSE, results="hide"}
+if (file.exists("airass.h5")) system("rm -rf airass.h5")
+```{r dodump}
+library(airway)
+library(HDF5Array)  # setup for external serialization
+data(airway)
+airass = assay(airway)  # obtain numerical data, then save as HDF5
+href = writeHDF5Array(airass, "airass.h5", "airway")
+```
+Now when we acquire access to the same numerical data,
+there is no growth in memory consumption:
+```
+> gc()  # after attaching HDF5Array package
+          used (Mb) gc trigger  (Mb) max used (Mb)
+Ncells 1272290 68.0    2164898 115.7  1495687 79.9
+Vcells 1539420 11.8    2552219  19.5  1938513 14.8
+> myd = HDF5Array("airass.h5", "airway")  # get reference to data
+> gc()
+          used (Mb) gc trigger  (Mb) max used (Mb)
+Ncells 1277344 68.3    2164898 115.7  1495687 79.9
+Vcells 1543344 11.8    2552219  19.5  1938513 14.8
+> dim(myd)
+[1] 64102     8
+```
+This is all well and good, but it is more useful to
+interact with the airway data through a SummarizedExperiment
+container, as we will now show.
+
+<a name="HDF5SE"></a>
+
+## HDF5-backed SummarizedExperiment
+
+Given a SummarizedExperiment, `saveHDF5SummarizedExperiment`
+arranges the data and metadata together, allowing
+control of memory consumption while preserving rich
+semantics of the container.
+
+```{r doexse}
+saveHDF5SummarizedExperiment(airway, "externalAirway", replace=TRUE)
+newse = loadHDF5SummarizedExperiment("externalAirway")
+newse
+assay(newse[c("ENSG00000000005", "LRG_99"), 
+        which(newse$dex == "trt")]) # use familiar subsetting
+```
+In this case the overhead of dealing with the SummarizedExperiment
+metadata wipes out the advantage of externalizing the assay data.
+```
+> gc() # after loading SummarizedExperiment
+          used  (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells 2802892 149.7    3886542 207.6  3205452 171.2
+Vcells 2334204  17.9    3851194  29.4  3625311  27.7
+> newse = loadHDF5SummarizedExperiment("externalAirway")
+> gc()
+          used  (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells 3754945 200.6    5684620 303.6  3972131 212.2
+Vcells 6669078  50.9   10201881  77.9  6962256  53.2
+```
+For very large assay arrays, the HDF5-backed SummarizedExperiment
+permits flexible computation with data that will not fit in
+avaiable memory.
 
 # GenomicFiles: families of files of a given type
 
+The `r Biocpkg("GenomicFiles")` package helps to manage
+collections of files.  This is important for data that
+we do not want to parse and model holistically, and
+do not need to import as a whole.
+
+There are methods for `rowRanges` and `colData` for instances
+of the `GenomicFiles` class.
+We can coordinate metadata about the samples or experiments
+from which files are derived in the `colData` component
+of `GenomicFiles` instances, and can define genomic intervals
+of interest for targeted querying using the `rowRanges` component.
+
 ## BAM collections
+
+A small-scale illustration with RNA-seq data uses the 2013 of
+[Zarnack and colleagues](http://dx.doi.org/10.1016/j.cell.2012.12.023)
+on a HNRNPC knockout experiment.  
+There are 8 HeLa cell samples, four of which are wild type,
+four of which have had RNA interference treatment to 
+reduce expression of HNRNPC, a gene on chromosome 14.
+
+The 
+`r Biocpkg("RNAseqData.HNRNPC.bam.chr14")` package has
+a collection of aligned reads.  The locations of the BAM files
+are in the vector `RNAseqData.HNRNPC.bam.chr14_BAMFILES`.
+
+```{r getbam}
+library(RNAseqData.HNRNPC.bam.chr14)
+library(GenomicFiles)
+gf = GenomicFiles(files=RNAseqData.HNRNPC.bam.chr14_BAMFILES)
+gf
+```
+
+This compact representation of a file set can be enhanced
+by binding a region of interest to the object.  We'll use
+the GRanges for HNRNPC:
+```{r dobind}
+hn = GRanges("chr14", IRanges(21677296, 21737638), strand="-")
+rowRanges(gf) = hn
+```
+
+To extract all the alignments overlapping the region of interest,
+we can use the `reduceByRange` method of `GenomicFiles`.
+We need to define a MAP function to use this.
+This will be a function of two arguments, `r` referring to
+the range of interest, and `f` referring to the file being
+parsed for alignments overlapping the range.
+`readGAlignmentPairs` is used because we are dealing with
+paired end sequencing data.
+```{r domap}
+MAP = function(r, f) 
+    readGAlignmentPairs(f, param=ScanBamParam(which=r))
+ali = reduceByRange(gf, MAP=MAP)
+sapply(ali[[1]], length)
+```
+This shows, informally, that there are more reads aligning
+to the HNRNPC region for the first four samples and thus
+tells us which of the samples are wild type, and which have
+had HNRNPC knocked down.  Note that the knockdown is imperfect --
+there is still evidence of some transcription in cells
+that underwent the knockdown protocol.
 
 ## BED collections
 
+The `r Biocpkg("erma")` is developed as a demonstration
+of the utility of packaging voluminous data on epigenomic
+assay outputs on diverse cell types for 'out of memory'
+analysis.  The basic container is a simple extension of
+'GenomicFiles' and is constructed using the `makeErmaSet`
+function:
+```{r lkerma}
+library(erma)
+erset = makeErmaSet()
+erset
+```
+What are the samples managed here?  The `colData` method
+gives a nice report:
+```{r lkerm2}
+colData(erset)
+```
+We can use familiar shortcuts to tabulate metadata about
+the samples.
+```{r lkerm3}
+table(erset$ANATOMY)
+```
+Thus we can have very lightweight interface in R (limited to metadata
+about the samples and file paths) to very large collections
+of BED files.  If these are tabix-indexed we can have very
+fast targeted retrieval of range-specific data.  This is
+illustrated by the `stateProfile` function.
+
+```{r lkstpr,fig=TRUE}
+stateProfile(erset[,26:31], shortCellType=FALSE)
+```
+This depicts the variation between anatomic sites
+in the epigenetic state of the promoter region of gene IL33,
+on the plus strand of chr9.  Of interest is the
+fact that the fetal lung sample seems to demonstrate
+enhancer activity in regions where the adult lung
+is found to have quiescent epigenetic state.
+
 # Managing information on large numbers of DNA variants
+
+The most common approach to handling large numbers of
+SNP genotypes (or small indels) is in files following the
+Variant Call Format (VCF files).  The `r Biocpkg("VariantAnnotation")`
+package defines infrastructure for working with this format.
+Since there is a tabix indexing procedure for these, `r Biocpkg("Rsamtools")` also provides relevant infrastructure.
 
 # Multiomics: MultiAssayExperiment, example of TCGA
 
