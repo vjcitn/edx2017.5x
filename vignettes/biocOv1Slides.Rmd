@@ -1,12 +1,13 @@
 ---
-title: "edX PH525.5x Bioconductor Overview I: R, repositories, objects, packages, continuous integration"
-author: "Vincent J. Carey"
+title: "Bioconductor: Motivations and core values"
+author: "Vincent J. Carey, edX PH525.5x Lecture 1"
 package: edx2017.5x
 output: 
   slidy_presentation:
     incremental: no
 ---
 ```{r setup,echo=FALSE,results="hide"}
+suppressMessages({
 suppressWarnings({
 suppressPackageStartupMessages({
 library(png)
@@ -20,16 +21,59 @@ library(Rsamtools)
 library(ggbio)
 })
 })
+})
 ```
 
-# Overview of this talk
+# Bioconductor: R for statistical analysis of genome-scale experiments
 
-- Brief comments on R, packaging, repositories
-- Concepts of functional object-oriented programming, modularity
+- R: Fostering open development and community uptake of statistical methods in many fields
+    - social and natural sciences are moving targets; statistical theory and computing environments likewise evolving rapidly
+    - R: 
+        - a programming language with established ease of uptake among scientists
+        - software packaging: code, documentation, distribution 
+        - package repositories
+- CRAN: A repository for general statistical computing and visualization
+- Bioconductor: An NHGRI-funded project, 16 years old, mobilizing R to address analysis of emerging genomic assays
+    - enhanced package concept, with vignettes
+    - formal object-oriented programming with S4
+    - active developer/user community interacting through support site and conferences
 
-# R language packages and repositories
+<!--
 
-![CRAN](CRANtop.png)
+- Concepts of functional object-oriented programming
+- Modularity and versioning
+- Reliability through (15 years of) continuous integration
+
+-->
+
+# Why R?
+
+- Widely used to create algorithms that advance our ability to understand complex experimental data.
+- Highly portable and interoperable, and fosters reuse of software components written in other languages. 
+
+Basic idioms:
+
+## interactive or scripted data capture and editing
+```
+df = read.csv([file reference])
+plot(y~x, data=df)
+cor.test(y~x, data=df)
+```
+## stepwise workflows
+```
+e1 = readCounts(...)
+d1 = preprocess(e1, ...)
+t1 = testDE(d1, ...)
+```
+## programming at the function level
+```
+mymeth = function(x, y, ...) { ... }
+```
+## programming at the package level: see devtools, package.skeleton
+
+# R language packages and repositories: `cran.r-project.org`
+
+![](CRANtop.png)
 
 This course assumes a good working knowledge of the R language.
 The Rstudio environment is recommended.  If you want to
@@ -38,25 +82,29 @@ work through a tutorial before proceeding,
 
 # CRAN Task Views as portals to ideas and software
 
-![CTV](taskViews.png)
+![](taskViews.png)
 
-# Bioconductor: a repository for genomic analysis tools in R
+# Bioconductor: R for open development and analysis in genome biology
 
-![Bioctop](biocTop.png)
+![](biocTop.png)
 
 # BiocViews: task views for package discovery
 
-![BCTV](biocTaskViews.png)
+![](biocTaskViews.png)
+
+# Package landing pages
+
+![](packLanding.png)
+
+# Vignette access pre-installation
+
+![](vignetteAcc.png)
 
 # The Bioconductor support site
 
-![bcsupp](bcSupp.png)
+![](bcSupp.png)
 
-# Why R?
-
-- Widely used to create algorithms that advance our ability to understand complex experimental data.
-- Highly interoperable, and fosters reuse of software components written in other languages. 
-- Portable to the key operating systems 
+<!--
 
 # Functional object-oriented programming
 
@@ -96,6 +144,12 @@ methods(class=class(Homo.sapiens))
     └── wikiCentralDogma.png
 ```
 
+# man pages and vignettes
+
+- man pages formally document every function and data object
+    - include runnable examples
+- vignettes describe the use of multiple functions to explain the general value of the package
+- man pages and vignettes are computable -- code can be included for execution at time of rendering
 
 # Modularity and formal interdependence of packages
 
@@ -109,6 +163,8 @@ development of software tools that address distinct problems.
 - Modularization *in time* is important to define collections of
 versions of software whose behavior is confirmed and stable.
 
+-->
+
 # Continuous integration: testing package correctness and interoperability
 
 
@@ -120,6 +176,8 @@ grid.raster(im)
 
 # Putting it together
 
+## Core development process
+
 Bioconductor's core developer group works hard to develop
 data structures that allow users to work conveniently with
 genomes and genome-scale data. 
@@ -127,3 +185,14 @@ genomes and genome-scale data.
 - Parse large-scale assay data as produced by microarray or sequencer flow-cell scanners.
 - Preprocess the (relatively) raw data to support reliable statistical interpretation.
 - Combine assay quantifications with sample-level data to test hypotheses about relationships between molecular processes and organism-level characteristics such as growth, disease state.
+
+## Community development process
+
+- Open source licensing obligatory
+- Open source code control (subversion to this point, soon to be git/github) in release and devel branches
+- Package review process, CMD biocCheck
+
+## Community support
+
+- support.bioconductor.org is a BioStar-based framework for discussion with optional moderation
+- conferences and training workshops are noted on the project site
